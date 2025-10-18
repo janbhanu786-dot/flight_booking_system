@@ -1,0 +1,82 @@
+CREATE TABLE Airlines (
+    airline_id INT PRIMARY KEY,
+    name VARCHAR(50),
+    code VARCHAR(10)
+);
+
+CREATE TABLE Flights (
+    flight_id INT PRIMARY KEY,
+    airline_id INT,
+    flight_number VARCHAR(10),
+    origin VARCHAR(50),
+    destination VARCHAR(50),
+    departure_time DATETIME,
+    arrival_time DATETIME,
+    FOREIGN KEY (airline_id) REFERENCES Airlines(airline_id)
+);
+
+CREATE TABLE Bookings (
+    booking_id INT PRIMARY KEY,
+    flight_id INT,
+    passenger_name VARCHAR(50),
+    seat_number VARCHAR(10),
+    booking_date DATETIME,
+    FOREIGN KEY (flight_id) REFERENCES Flights(flight_id)
+);
+INSERT INTO Airlines (airline_id, name, code) VALUES
+(1, 'Air India', 'AI'),
+(2, 'Indigo', '6E'),
+(3, 'SpiceJet', 'SG');
+
+INSERT INTO Flights (flight_id, airline_id, flight_number, origin, destination, departure_time, arrival_time) VALUES
+(1, 1, 'AI101', 'Delhi', 'Mumbai', '2025-03-01 10:00:00', '2025-03-01 12:00:00'),
+(2, 2, '6E202', 'Mumbai', 'Delhi', '2025-03-01 15:00:00', '2025-03-01 17:00:00'),
+(3, 3, 'SG303', 'Delhi', 'Chennai', '2025-03-01 09:00:00', '2025-03-01 11:30:00');
+
+INSERT INTO Bookings (booking_id, flight_id, passenger_name, seat_number, booking_date) VALUES
+(1, 1, 'John Doe', 'A1', '2025-02-20 10:00:00'),
+(2, 2, 'Jane Doe', 'B2', '2025-02-21 11:00:00'),
+(3, 3, 'Bob Smith', 'C3', '2025-02-22 12:00:00');
+
+
+-- Get all flights operated by Air India
+SELECT * FROM Flights WHERE airline_id = 1;
+
+-- Get all bookings for a specific flight
+SELECT * FROM Bookings WHERE flight_id = 1;
+
+-- Get the number of bookings for each flight
+SELECT f.flight_number, COUNT(b.booking_id) AS num_bookings
+FROM Flights f
+JOIN Bookings b ON f.flight_id = b.flight_id
+GROUP BY f.flight_number;
+
+SELECT f.flight_number, a.name AS airline_name, f.origin, f.destination
+FROM Flights f
+JOIN Airlines a ON f.airline_id = a.airline_id;
+SELECT b.booking_id, f.flight_number, a.name AS airline_name, b.passenger_name
+FROM Bookings b
+JOIN Flights f ON b.flight_id = f.flight_id
+JOIN Airlines a ON f.airline_id = a.airline_id;
+SELECT a.name AS airline_name, f.flight_number, COUNT(b.booking_id) AS num_bookings
+FROM Airlines a
+JOIN Flights f ON a.airline_id = f.airline_id
+LEFT JOIN Bookings b ON f.flight_id = b.flight_id
+GROUP BY a.name, f.flight_number;
+SELECT f.flight_number, b.booking_id
+FROM Flights f
+INNER JOIN Bookings b ON f.flight_id = b.flight_id;
+SELECT f.flight_number, b.booking_id
+FROM Flights f
+LEFT JOIN Bookings b ON f.flight_id = b.flight_id;
+SELECT f.flight_number, b.booking_id
+FROM Flights f
+RIGHT JOIN Bookings b ON f.flight_id = b.flight_id;
+
+SELECT f.flight_number, b.booking_id
+FROM Flights f
+FULL OUTER JOIN Bookings b ON f.flight_id = b.flight_id;
+INSERT INTO Bookings (booking_id, flight_id, passenger_name, seat_number, booking_date) VALUES
+(4, 1, 'Alice', 'A2', '2025-02-25 10:00:00'),
+(5, 2, 'Bob Jr', 'B3', '2025-02-26 11:00:00');
+SELECT * FROM Bookings;
