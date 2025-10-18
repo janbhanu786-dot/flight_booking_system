@@ -1,0 +1,146 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
+from datetime import datetime
+import random
+
+app = FastAPI()
+
+class Flight(BaseModel):
+    flight_id: str
+    airline_name: str
+    origin: str
+    destination: str
+    arrival_time: str
+    departure_time: str
+    base_fare: float
+    total_seats: int
+    seats_available: int
+
+class Passenger(BaseModel):
+    first_name: str
+    last_name: str
+    age: int
+    phone: int
+
+class BookingRequest(BaseModel):
+    flight_id: str
+    passenger: Passenger
+    travel_date: str
+    seat_no: str
+
+class BookingResponse(BaseModel):
+    booking_id: int
+    flight_id: str
+    passenger: Passenger
+    travel_date: str
+    seat_no: str
+    status: str
+
+flights_db = [
+    Flight(flight_id="AI1", airline_name="Air India", origin="Mumbai", destination="Delhi", arrival_time="10:00", departure_time="12:00", base_fare=5000, total_seats=100, seats_available=50),
+    Flight(flight_id="6E1", airline_name="Indigo", origin="Delhi", destination="Mumbai", arrival_time="14:00", departure_time="16:00", base_fare=4500, total_seats=80, seats_available=30),
+]
+
+bookings_db = []
+
+@app.get("/flights/")
+def get_flights():
+    return flights_db
+
+@app.get("/flights/{flight_id}")
+def get_flight(flight_id: str):
+    for flight in flights_db:
+        if flight.flight_id == flight_id:
+            return flight
+    raise HTTPException(status_code=404, detail="Flight not found")
+
+@app.post("/bookings/")
+def create_booking(booking: BookingRequest):
+    for flight in flights_db:
+        if flight.flight_id == booking.flight_id:
+            if flight.seats_available > 0:
+                flight.seats_available -= 1
+                booking_id = len(bookings_db) + 1
+                bookings_db.append({
+                    "booking_id": booking_id,
+                    "flight_id": booking.flight_id,
+                    "passenger": booking.passenger,
+                    "travel_date": booking.travel_date,
+                    "seat_no": booking.seat_no,
+                    "status": "Confirmed"
+                })
+                return BookingResponse(
+                    booking_id=booking_id,
+                    flight_id=booking.flight_id,
+                    passenger=booking.passenger,
+                    travel_date=booking.travel_date,
+                    seat_no=booking.seat_no,
+                    status="Confirmed"
+                )
+            else:
+                raise HTTPException(status_code=400, detail="No seats available")
+    raise HTTPException(status_code=404, detail="Flight not found")
+
+@app.get("/bookings/")
+def get_bookings():
+    return bookings_db
+
+@app.get("/bookings/{booking_id}")
+def get_booking(booking_id: int):
+    for booking in bookings_db:
+        if booking["booking_id"] == booking_id:
+            return BookingResponse(
+                booking_id=booking["booking_id"],
+                flight_id=booking["flight_id"],
+                passenger=booking["passenger"],
+                travel_date=booking["travel_date"],
+                seat_no=booking["seat_no"],
+                status=booking["status"]
+            )
+    raise HTTPException(status_code=404, detail="Booking not found")
+
+@app.put("/bookings/{booking_id}")
+def update_booking(booking_id: int, booking: BookingRequest):
+    for i, existing_booking in enumerate(bookings_db):
+        if existing_booking["booking_id"] == booking_id:
+            bookings_db[i] = {
+                "booking_id": booking_id,
+                "flight_id": booking.flight_id,
+                "passenger": booking.passenger,
+                "travel_date": booking.travel_date,
+                "seat_no": booking.seat_no,
+                "status": "Updated"
+            }
+            return BookingResponse(
+                booking_id=booking_id,
+                flight_id=booking.flight_id,
+                passenger=booking.passenger,
+                travel_date=booking.travel_date,
+                seat_no=booking.seat_no,
+                status="Updated"
+            )
+    raise HTTPException(status_code=404, detail="Booking not found")
+
+@app.delete("/bookings/{booking_id}")
+def cancel_booking(booking_id: int):
+    for i, booking in enumerate(bookings_db):
+        if booking["booking_id"] == booking_id:
+            del bookings_db[i]
+            return {"message": "Booking cancelled successfully"}
+    raise HTTPException(status_code=404, detail="Booking not found")
+
+def calculate_dynamic_price(flight: Flight):
+    base_fare = flight.base_fare
+    seats_available = flight.seats_available
+    total_seats = flight.total_seats
+    demand_factor = random.uniform(0.8, 1.2)
+    price = base_fare * (seats_available / total_seats) * demand_factor
+    return price
+
+@app.get("/flights/{flight_id}/price")
+def get_dynamic_price(flight_id: str):
+    for flight in flights_db:
+        if flight.flight_id == flight_id:
+            return {"price": calculate_dynamic_price(flight)}
+    raise HTTPException(status_code=404, detail="Flight not found")
