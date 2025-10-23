@@ -1,0 +1,179 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+import uuid
+import random
+from datetime import datetime, timedelta
+from typing import List
+
+app = FastAPI()
+
+# Database setup
+engine = create_engine("sqlite:///bookings.db")
+Session = sessionmaker(bind=engine)
+Base = declarative_base()
+
+# Define models
+class Flight(Base):
+    _tablename_ = "flights"
+    id = Column(Integer, primary_key=True)
+    flight_id = Column(String)
+    origin = Column(String)
+    destination = Column(String)
+    departure_time = Column(DateTime)
+    arrival_time = Column(DateTime)
+    base_fare = Column(Float)
+    total_seats = Column(Integer)
+    seats_available = Column(Integer)
+
+class Booking(Base):
+    _tablename_ = "bookings"
+    id = Column(Integer, primary_key=True)
+    booking_id = Column(Integer)
+    flight_id = Column(String)
+    passenger_name = Column(String)
+    seat_number = Column(String)
+    status = Column(String)
+    price = Column(Float)
+    pnr = Column(String)
+    payment_method = Column(String)
+
+class Passenger(Base):
+    _tablename_ = "passengers"
+    id = Column(Integer, primary_key=True)
+    passenger_id = Column(Integer)
+    name = Column(String)
+    email = Column(String)
+    phone_number = Column(String)
+
+class Payment(Base):
+    _tablename_ = "payments"
+    id = Column(Integer, primary_key=True)
+    payment_id = Column(Integer)
+    booking_id = Column(Integer)
+    payment_method = Column(String)
+    amount = Column(Float)
+    payment_date = Column(DateTime)
+
+Base.metadata.create_all(engine)
+
+class FlightRequest(BaseModel):
+    flight_id: str
+    origin: str
+    destination: str
+    departure_time: str
+    arrival_time: str
+    base_fare: float
+    total_seats: int
+    seats_available: int
+
+class BookingRequest(BaseModel):
+    flight_id: str
+    passenger_name: str
+    seat_number: str
+    payment_method: str
+
+class PassengerRequest(BaseModel):
+    name: str
+    email: str
+    phone_number: str
+
+class PaymentRequest(BaseModel):
+    booking_id: int
+    payment_method: str
+    amount: float
+
+@app.post("/flights/")
+def create_flight(flight_request: FlightRequest):
+    session = Session()
+    flight = Flight(
+        flight_id=flight_request.flight_id,
+        origin=flight_request.origin,
+        destination=flight_request.destination,
+        departure_time=datetime.strptime(flight_request.departure_time, "%Y-%m-%d %H:%M:%S"),
+        arrival_time=datetime.strptime(flight_request.arrival_time, "%Y-%m-%d %H:%M:%S"),
+        base_fare=flight_request.base_fare,
+        total_seats=flight_request.total_seats,
+        seats_available=flight_request.seats_available
+    )
+    session.add(flight)
+    session.commit()
+    return {"message": "Flight created successfully"}
+
+@app.post("/bookings/")
+def create_booking(booking_request: BookingRequest):
+    session = Session()
+    try:
+        flight = session.query(Flight).filter_by(flight_id=booking_request.flight_id).with_for_update().first()
+        if flight.seats_available <= 0:
+            raise HTTPException(status_code=400, detail="No seats available")
+        flight.seats_available -= 1
+        pnr = str(uuid.uuid4()).replace("-", "").upper()[:6]
+        booking = Booking(
+            booking_id=random.randint(1, 1000),
+            flight_id=booking_request.flight_id,
+            passenger_name=booking_request.passenger_name,
+            seat_number=booking_request.seat_number,
+            status="Confirmed",
+            price=flight.base_fare,
+            pnr=pnr,
+            payment_method=booking_request.payment_method
+        )
+        session.add(booking)
+        session.commit()
+        return {"message": "Booking created successfully", "booking_id": booking.booking_id, "pnr": pnr}
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail="Booking failed")
+
+@app.post("/payments/")
+def create_payment(payment_request: PaymentRequest):
+    session = Session()
+    payment = Payment(
+        payment_id=random.randint(1, 1000),
+        booking_id=payment_request.booking_id,
+        payment_method=payment_request.payment_method,
+        amount=payment_request.amount,
+        payment_date=datetime.now()
+    )
+    session.add(payment)
+    session.commit()
+    return {"message": "Payment created successfully"}
+
+@app.delete("/bookings/{booking_id}")
+def cancel_booking(booking_id: int):
+    session = Session()
+    booking = session.query(Booking).filter_by(booking_id=booking_id).first()
+    if booking:
+        session.delete(booking)
+        session.commit()
+        return {"message": "Booking cancelled successfully"}
+    raise HTTPException(status_code=404, detail="Booking not found")
+
+@app.get("/bookings/{pnr}")
+def get_booking(pnr: str):
+    session = Session()
+    booking = session.query(Booking).filter_by(pnr=pnr).first()
+    if booking:
+        return {"booking_id": booking.booking_id, "flight_id": booking.flight_id, "passenger_name": booking.passenger_name, "pnr": booking.pnr}
+    raise HTTPException(status_code=404, detail="Booking not found")
+
+@app.get("/flights/")
+def get_flights():
+    session = Session()
+    flights = session.query(Flight).all()
+    return [{"flight_id": flight.flight_id, "origin": flight.origin, "destination": flight.destination} for flight in flights]
+
+@app.get("/passengers/")
+def get_passengers():
+    session = Session()
+    passengers = session.query(Passenger).all()
+    return [{"passenger_id": passenger.passenger_id, "name": passenger.name, "email": passenger.email} for passenger in passengers]
+
+@app.get("/payments/")
+def get_payments():
+    session = Session()
+    payments = session.query(Payment).all()
+    return [{"payment_id": payment.payment_id, "booking_id": payment.booking_id, "payment_method": payment.payment_method} for payment in payments]
