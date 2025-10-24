@@ -1,0 +1,105 @@
+import random
+from datetime import datetime, timedelta
+from typing import Dict
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class DynamicPricingEngine:
+    def _init_(self, base_fare: float, total_seats: int):
+        self.base_fare = base_fare
+        self.total_seats = total_seats
+        self.seats_remaining = total_seats
+        self.pricing_tiers = {
+            "low_demand": 0.8,
+            "medium_demand": 1.0,
+            "high_demand": 1.2
+        }
+        self.demand_levels = ["low_demand", "medium_demand", "high_demand"]
+        self.time_factors = {
+            "short_notice": 1.2,
+            "medium_notice": 1.1,
+            "long_notice": 1.0
+        }
+        self.discount_tiers = {
+            "student": 0.9,
+            "senior": 0.85,
+            "military": 0.8
+        }
+
+    def calculate_price(self, time_until_departure: timedelta, demand_level: str, discount_level: str = None) -> float:
+        # Calculate price based on remaining seat percentage
+        seat_factor = 1 + (1 - self.seats_remaining / self.total_seats) * 0.2
+
+        # Calculate price based on time until departure
+        time_factor = self.get_time_factor(time_until_departure)
+
+        # Calculate price based on demand level
+        demand_factor = self.pricing_tiers.get(demand_level, 1.0)
+
+        # Calculate price based on discount level
+        discount_factor = self.discount_tiers.get(discount_level, 1.0)
+
+        # Calculate final price
+        price = self.base_fare * seat_factor * time_factor * demand_factor * discount_factor
+        return round(price, 2)
+
+    def simulate_demand_shift(self):
+        # Simulate demand shift based on random factors
+        demand_level = random.choice(self.demand_levels)
+        return demand_level
+
+    def update_seats_remaining(self, seats_booked: int):
+        self.seats_remaining -= seats_booked
+
+    def get_time_factor(self, time_until_departure: timedelta):
+        if time_until_departure < timedelta(hours=24):
+            return self.time_factors["short_notice"]
+        elif time_until_departure < timedelta(hours=72):
+            return self.time_factors["medium_notice"]
+        else:
+            return self.time_factors["long_notice"]
+
+def get_time_until_departure(departure_time: datetime) -> timedelta:
+    return departure_time - datetime.now()
+
+class FlightSearchRequest(BaseModel):
+    departure_time: str
+    base_fare: float
+    total_seats: int
+    discount_level: str = None
+
+@app.post("/flight_search/")
+def flight_search(request: FlightSearchRequest):
+    try:
+        departure_time = datetime.strptime(request.departure_time, "%Y-%m-%d %H:%M:%S")
+        pricing_engine = DynamicPricingEngine(request.base_fare, request.total_seats)
+        time_until_departure = get_time_until_departure(departure_time)
+        demand_level = pricing_engine.simulate_demand_shift()
+        price = pricing_engine.calculate_price(time_until_departure, demand_level, request.discount_level)
+        return {"price": price}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/book_flight/")
+def book_flight(request: FlightSearchRequest, seats_booked: int):
+    try:
+        departure_time = datetime.strptime(request.departure_time, "%Y-%m-%d %H:%M:%S")
+        pricing_engine = DynamicPricingEngine(request.base_fare, request.total_seats)
+        pricing_engine.update_seats_remaining(seats_booked)
+        return {"message": "Flight booked successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/flight_status/")
+def flight_status(request: FlightSearchRequest):
+    try:
+        departure_time = datetime.strptime(request.departure_time, "%Y-%m-%d %H:%M:%S")
+        pricing_engine = DynamicPricingEngine(request.base_fare, request.total_seats)
+        time_until_departure = get_time_until_departure(departure_time)
+        demand_level = pricing_engine.simulate_demand_shift()
+        price = pricing_engine.calculate_price(time_until_departure, demand_level, request.discount_level)
+        return {"price": price, "seats_remaining": pricing_engine.seats_remaining}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
