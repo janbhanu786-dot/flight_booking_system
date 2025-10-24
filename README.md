@@ -36,6 +36,7 @@ Objective: Implement APIs for flight retrieval, search, and integrate a dynamic 
 Tasks:
 
 1. Build REST APIs (Flask / FastAPI / Django) for:
+
 2.Retrieving all flights
 
 Searching by origin, destination, and date
@@ -43,9 +44,9 @@ Searching by origin, destination, and date
 4. Simulate external airline schedule APIs.
 5. Design dynamic pricing logic using:
 
-Remaining seat percentage
+   *Remaining seat percentage
 
-Time until departure
+  *Time until departure
 
 Simulated demand level
 
