@@ -29,6 +29,7 @@ Working database with populated flight data.
 
 Verified SQL operations and constraints.
 
+
 ✈ Milestone 2: Flight Search & Dynamic Pricing Engine
 
 Objective: Implement APIs for flight retrieval, search, and integrate a dynamic pricing engine.
@@ -37,24 +38,37 @@ Tasks:
 
 1. Build REST APIs (Flask / FastAPI / Django) for:
 
-2.Retrieving all flights
+Retrieving all flights
 
 Searching by origin, destination, and date
-3. Implement input validation and sorting (by price or duration).
-4. Simulate external airline schedule APIs.
-5. Design dynamic pricing logic using:
 
-   *Remaining seat percentage
 
-  *Time until departure
+
+2. Implement input validation and sorting (by price or duration).
+
+
+3. Simulate external airline schedule APIs.
+
+
+4. Design dynamic pricing logic using:
+
+Remaining seat percentage
+
+Time until departure
 
 Simulated demand level
 
 Base fare and pricing tiers
 
-6. Integrate dynamic pricing with flight search API.
-7. Build a background process to simulate demand and seat availability changes.
-8. Store fare history for tracking price changes.
+
+
+5. Integrate dynamic pricing with flight search API.
+
+
+6. Build a background process to simulate demand and seat availability changes.
+
+
+7. (Optional) Store fare history for tracking price changes.
 
 Output:
 
