@@ -95,6 +95,7 @@ Integrate email notifications for booking confirmation.
 Include admin dashboard for analytics and management.
 ## 🧑‍💻 Author
 Charitha Muppala
+
 Guided by Springboard Mentor 564
 ## 📄 License
 This project is licensed under the MIT License — feel free to use, modify, and share with attribution.
